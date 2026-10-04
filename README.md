@@ -1,2 +1,86 @@
-# claude-skills-linkedin
-Claude skills for LinkedIn: outreach campaigns, high-intent leads, feed engagement, and profile enrichment.
+# Claude Skills for LinkedIn
+
+> **Connect your AI Agent to B2B Channels.**
+> Powered by [LinkupAPI](https://app.linkupapi.com) — a unified API that lets agents act on the channels where B2B revenue actually happens. Today: full LinkedIn coverage (outbound, engagement, content, recruiter, enrichment, webhooks). More channels are landing on the same action-based interface.
+
+This repo is a bundle of **Claude skills for LinkedIn**: 4 ready-to-run, auditable Claude Code workflows that turn LinkupAPI's capabilities into safe, rate-limit-aware automation. The fastest way to put an AI agent on a real LinkedIn account without writing glue code.
+
+**Keywords**: claude skills for linkedin · claude code linkedin · linkedin automation claude · claude agent linkedin · linkupapi mcp · linkedin outreach AI agent.
+
+## Skills
+
+### `linkedin-outreach/` — Full B2B outreach campaign
+Define an ICP, find target companies, extract decision makers (CEO/CTO/Founder), filter false positives, send connection requests, optionally arm a webhook for accept-triggered messages. 8-stage flow with intent-first ICP discovery (sell / recruit / network), draft ICP proposal, batched-form filter editing, multi-account selection with dedup-and-round-robin, and mandatory campaign log persistence.
+
+### `linkedin-high-intent/` — High-intent leads from a post
+Given a LinkedIn post URL, scrape commenters and reactors, filter on visible signal (no enrichment), enrich the matches, score against the ICP, and launch a targeted outreach campaign on confirmed matches. The "saw your comment on…" note boosts accept rate substantially over cold.
+
+### `linkedin-feed-engage/` — Auto-comment on ICP feed
+Scroll the feed, identify posts authored by ICP-matching profiles, generate value-adding 2-3 sentence comments (auto, templated, or HITL-approved), and post them with strict pacing (30-60s between, max 15/day). Used as a warm-up before outreach: prospect sees your name on their post, then receives an invite.
+
+### `linkedin-enrich/` — Bulk URL enrichment
+Given N LinkedIn profile URLs, return enriched data: current role, company, location, experience, skills, plus professional email when findable. Output as inline markdown table, CSV, or JSON. De-dups against `./enrichments/` from the last 30 days so you never re-pay for the same lookup.
+
+## Daily safety caps (shared across all 4 skills)
+
+Each skill is rate-limit-aware and respects these per-account daily caps before any tool call:
+
+| Cap | Limit / day | Tool action it gates |
+|---|---|---|
+| Connection requests | **20** | `linkedin_network/invite` |
+| Profile gets | **100** | `linkedin_profiles/get` |
+| Searches | **15** | `linkedin_profiles/search_*` |
+| Comments (feed-engage only) | **15** | `linkedin_content/comment` |
+
+The cap is **shared across all 4 skills** — hitting it from any one carries over. Each skill queries `linkupapi_get_logs` at Stage 0 to compute remaining budget, then trims the campaign size or stops gracefully if the budget is exhausted. Same-day duplicate work is deduped via `./campaigns/*.md` and `./enrichments/*.md` logs.
+
+## Installation
+
+### Claude Code (CLI / IDE)
+
+```bash
+git clone https://github.com/linkedroid/claude-skills-linkedin /tmp/claude-skills-linkedin
+cp -R /tmp/claude-skills-linkedin/linkedin-* ~/.claude/skills/
+```
+
+Restart Claude Code. The skills are auto-discovered and triggered by natural-language prompts: "outreach campaign", "enrich these profiles", "comment on my feed", "find leads from this post URL", etc.
+
+### Claude Desktop / Claude.ai (web)
+
+Each skill is also published as a `.zip` artifact on the [latest GitHub release](https://github.com/linkedroid/claude-skills-linkedin/releases/latest). To install:
+
+1. Download the zip(s) you want — one per skill: `linkedin-outreach.zip`, `linkedin-high-intent.zip`, `linkedin-feed-engage.zip`, `linkedin-enrich.zip`.
+2. In Claude Desktop or claude.ai, go to **Settings → Skills → Upload skill** and drop the zip.
+3. The skill becomes available across all your projects/conversations.
+
+The MCP setup is the same on all three surfaces — see below.
+
+## Connect the LinkupAPI MCP server
+
+All 4 skills require the LinkupAPI MCP server with at least one channel account in `connected` status. The auth is OAuth — no API key in headers, no token to manage.
+
+**Claude Code**:
+```bash
+claude mcp add --transport http linkupapi https://mcp.linkupapi.com/mcp
+```
+Then run `/mcp` and follow the redirect to consent.
+
+**Claude Desktop / Claude.ai**: Settings → **Connectors** → **Add custom connector** → URL = `https://mcp.linkupapi.com/mcp`. Click Connect, approve on the LinkupAPI consent page.
+
+If you don't have a LinkupAPI account yet, the consent page will let you sign up before approving.
+
+## Cross-skill data flow
+
+Each skill writes to a shared local directory inside the project where Claude Code runs:
+- `./campaigns/{date}-{slug}.md` — outreach + high-intent + feed-engage campaign logs
+- `./enrichments/{date}-{slug}.md` — enrichment logs (and the CSV/JSON outputs alongside)
+
+Subsequent runs of any skill **dedupe against these logs**, so a profile is never invited, commented on, or enriched twice unnecessarily. The logs are the source of truth for accept-rate analysis 7-14 days after a campaign.
+
+## Beyond LinkedIn
+
+LinkupAPI is built around an **action-based, multi-channel** interface — the same `{action, params}` shape that powers `linkedin_profiles` / `linkedin_network` / `linkedin_content` will extend to other B2B channels as they land. The skills in this repo are LinkedIn-shaped today; the LinkupAPI surface itself is broader.
+
+## License
+
+Private use only (for now).
